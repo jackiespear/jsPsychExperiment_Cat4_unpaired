@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Recognition Experiment</title>
+        <meta name="author" content="Jackie Spear"/>
+        <meta name="description" content="A psychology recognition memory experiment"/>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <script src="jspsych-6.3.1/jspsych.js"></script>
+        <script src="jspsych-6.3.1/plugins/jspsych-html-keyboard-response.js"></script>
+        <script src="jspsych-6.3.1/plugins/jspsych-html-button-response.js"></script>
+        <script src="jspsych-6.3.1/plugins/jspsych-external-html.js"></script>
+        <script src="jspsych-6.3.1/plugins/jspsych-survey-text.js"></script>
+        <script src="jspsych-6.3.1/plugins/jspsych-fullscreen.js"></script>
+        <script src="jspsych-6.3.1/plugins/jspsych-survey-html-form.js"></script>
+        <script src='stimuli/exp_text.js'></script>
+        <script src='stimuli/study_words.js'></script>
+        <script src='stimuli/test_words.js'></script>
+        <link href="jspsych-6.3.1/css/jspsych.css" rel="stylesheet" type="text/css"></link>
+    </head>
+    <body></body>
+
+<!-- Allow remote storage on Google Firebase -->
+<!-- The core Firebase JS SDK is always required and must be listed first -->
+<script src="https://www.gstatic.com/firebasejs/7.12.0/firebase-app.js"></script>
+
+<!-- TODO: Add SDKs for Firebase products that you want to use
+     https://firebase.google.com/docs/web/setup#available-libraries -->
+<script src="https://www.gstatic.com/firebasejs/7.12.0/firebase-analytics.js"></script>
+
+<script src="https://www.gstatic.com/firebasejs/7.12.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/7.12.0/firebase-database.js"></script>
+
+<!-- enter some javascript code-->
+<script type="text/javascript">
+// Firebase set up
+
+// See: https://crumplab.github.io/jspsychrexamples/FirebaseDemo/Instructions_FirebaseDemo.html 
+ // Your web app's Firebase configuration (given to us by firebase)
+ var firebaseConfig = {
+    apiKey: "AIzaSyCJL_-NhM7lN8L4TpNkbwtozm3avPjwcAQ",
+    authDomain: "wordcategorization3-unpaired.firebaseapp.com",
+    databaseURL: "https://wordcategorization3-unpaired-default-rtdb.firebaseio.com",
+    projectId: "wordcategorization3-unpaired",
+    storageBucket: "wordcategorization3-unpaired.appspot.com",
+    messagingSenderId: "104649418065",
+    appId: "1:104649418065:web:eedef44b9816a5c24edf70",
+    measurementId: "G-7M6KR1DBJ4"
+  };
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+  firebase.analytics();
+
+  // Get a reference to the database service
+  var database = firebase.database();
+
+   // login anonymous user
+   firebase.auth().signInAnonymously().catch(function(error) {
+  // Handle Errors here.
+  var errorCode = error.code;
+  var errorMessage = error.message;
+  // ...
+});
+  
+  // check if user can sign on to firebase 
+  firebase.auth().onAuthStateChanged(function(user) {
+  if (user) {
+    // User is signed in.
+    var isAnonymous = user.isAnonymous;
+    var uid = user.uid;
+    // ...
+  } else {
+    // User is signed out.
+    // ...
+  }
+  // ...
+});
+</script>
+
+
+<script>
+
+/* experiment parameters */
+// generate a random subject ID with 15 characters
+var subject_id = jsPsych.randomization.randomID(15);
+
+// get the id number for the SONA participant so that we can grant credits automatically
+var SONA_ID = getUrlParam('id','Empty');
+
+function getUrlVars() {
+    var vars = {};
+    var parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi,function(m,key,value) {
+        vars[key] = value;
+    });
+    return vars;
+}
+
+// Get the time that the experiment began (ms since 1 January 1970)
+var start_time = new Date().getTime();
+
+// record this data to all trials
+jsPsych.data.addProperties({
+  subject: subject_id,
+  StartTime: start_time,
+});
+    
+// to check for consent
+var consent_check = false;
+    
+ // function to check if in fullscreen mode
+  function is_fullscreen(){
+  // check if in fullscreen mode
+  if(window.innerWidth == screen.width && window.innerHeight == screen.height){
+    return true;
+  }else{return false}
+  }
+
+  function getUrlParam(parameter, defaultvalue){
+    var urlparameter = defaultvalue;
+    if(window.location.href.indexOf(parameter) > -1){
+        urlparameter = getUrlVars()[parameter];
+        }
+    return urlparameter;
+  }
+
+// set up consent procedure
+var consent = {
+  type: "external-html",
+  url: "forms/consent.html",
+  cont_btn: "consent-btns",
+  data: {"phase": "Consent"},
+};
+
+// set up welcome screen 
+var welcome = {
+  type: "html-keyboard-response",
+  stimulus: welcome_text,
+  data: {"phase": "Welcome",
+  },
+};
+
+// set up instructions screen (including attention check)
+var instructions = {
+  timeline: [
+    // first trial is displaying the experiment instructions
+    {
+      type: "html-keyboard-response",
+      stimulus: instruction_text,
+      data: {"phase": "Instructions"},
+    },
+    // second trial is displaying the instructions check
+    {
+      type: "survey-text",
+      questions: [
+        {
+          prompt: attention_check_text, 
+          columns: 20, 
+          rows: 1, 
+          required: true, 
+          name: "Attention_check"
+        },
+      ],
+      data: {"phase": "Attention_Check"},
+    },
+  ],
+  // wait 1 second after completion
+  post_trial_gap: 1000,
+  // record if in fullscreen
+  on_finish: function(data){
+    data.fullscreen = is_fullscreen();
+  },
+  // if the participant recorded anything except "4" then repeat (answer to 2+2 in the instructions)
+  loop_function: function(data){
+    console.log(data.values()[1]);
+    response_data = data.values()[1].response;
+    if(response_data.Attention_check == "4"){
+      return false
+    }else{
+      return true
+    }
+  },
+};
+
+//Present the study words
+var study_phase = {
+    timeline: [
+        {
+            type: 'html-keyboard-response',
+            stimulus: jsPsych.timelineVariable('stimulus'),
+            choices: jsPsych.NO_KEYS,
+            data: jsPsych.timelineVariable("data"),
+            trial_duration: 2000, // words will appear for 2 seconds
+            post_trial_gap: 500 // like a blank 500
+        }
+    ],
+    randomize_order: true,
+    timeline_variables: studywords,
+};
+
+//test phase instructions presented after study phase is over
+var test_instructions = {
+  type: "html-keyboard-response",
+  stimulus: test_instruction_text,
+  choices: ['i'],
+  data: {"phase": "Test_Instructions",
+},
+};
+
+//Present the test words
+var test_phase = {
+    timeline: [
+        {
+            type: 'html-keyboard-response',
+            stimulus: jsPsych.timelineVariable('stimulus'),
+            choices: ['y', 'n'],
+            data: jsPsych.timelineVariable("data"),
+            response_ends_trial:true,
+            post_trial_gap: 500 // like a blank 500
+        }
+    ],
+    randomize_order: true,
+    timeline_variables: testwords,
+};
+
+//question trial
+var question_trial = {
+  type: 'survey-html-form',
+  button_label: 'Click here to continue',
+  preamble: '<p> The words in this experiment where chosen on the basis of a rule. If you think you know what the rule was, please provdie an answer.</p>',
+  html: '<p> What was the rule? <input type="text" id="test-resp-box" name="response" size="90" /> <br><br> Click here if you do not know: <input type="radio" id="test-dont-know-resp" name="dont-know-response" /> <br><br><br><br></p>',
+  autofocus: 'test-resp-box'
+};
+
+
+// set up debrief block
+var debrief = {
+  type: "html-keyboard-response",
+  stimulus: debrief_text,
+  //post_trial_gap: 1000
+};
+
+// set up full_screen mode
+var enter_full_screen = {
+  type: 'fullscreen',
+  fullscreen_mode: true,
+  message: fullscreen_prompt,
+  // disable button for 15 seconds to force reading
+  on_load: function(data){
+    var test = document.querySelectorAll('button')[0];
+    test.disabled = true;
+    setTimeout(() => {test.disabled = false;},15000);
+  }
+};
+
+// prepare an end to full_screen mode 
+var exit_full_screen = {
+  type: 'fullscreen',
+  fullscreen_mode: false,
+  // save data when going through exit full screen routine
+  // will save data at this point if they have alrady exited full screen
+  on_finish: function() {
+    firebase.database().ref(subject_id).set({
+      data: jsPsych.data.get().values()
+    })
+  }
+};
+
+// if a subject does not consent //
+var no_consent = {
+  timeline: [
+    {
+      type: "external-html",
+      url: "forms/no_consent_deb.html",
+      data: {"phase": "No_consent"},
+    },
+    ],
+  conditional_function: function(data){
+    if(consent_check == false){
+      return true
+    }else{
+      return false
+    }
+  }
+};
+
+/*set up experiment structure*/
+var timeline = [];
+timeline.push(consent); // comment out for testing
+timeline.push(no_consent); // comment out for testing
+timeline.push(welcome);
+timeline.push(enter_full_screen); // comment out for testing
+timeline.push(instructions); // comment out for testing
+timeline.push(study_phase);
+timeline.push(test_instructions);
+timeline.push(test_phase);
+timeline.push(question_trial);
+timeline.push(exit_full_screen);
+timeline.push(debrief);
+
+/*start experiment*/
+jsPsych.init({
+    timeline: timeline,
+    on_finish: function() {
+      window.location.href = "https://umanitobapsych.sona-systems.com/webstudy_credit.aspx?experiment_id=1303&credit_token=a035fd3a62b541dcae118ab791f90307&survey_code="+SONA_ID; //changed
+      // display data at end:
+      //jsPsych.data.displayData(); // uncomment this line for testing
+    }
+});
+
+  </script>
+  </html>
